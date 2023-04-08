@@ -15,7 +15,7 @@ nlp = spacy.load("en_core_web_md")
 
 # Load the FAQ data from the CSV file
 faq_data = []
-with open('/kaggle/input/faqdata1/FAQ.csv', newline='') as faq_file:
+with open('FAQ.csv', newline='') as faq_file:
     reader = csv.reader(faq_file)
     for row in reader:
         faq_data.append(row)
