@@ -1,16 +1,13 @@
+import os
 import csv
 import spacy
-from transformers import pipeline
+import torch
+from transformers import AutoTokenizer, AutoModelForQuestionAnswering, pipeline
+from flask import Flask, request, jsonify
 
-# Install necessary dependencies
-!pip install spacy
-!pip install csv
-!pip install transformers
-
-# Download the spaCy English language model
-!python -m spacy download en_core_web_md
-
-# Load the English language model for spaCy
+# Download and load the spaCy English language model
+if not os.path.exists('en_core_web_md'):
+    !python -m spacy download en_core_web_md
 nlp = spacy.load("en_core_web_md")
 
 # Load the FAQ data from the CSV file
@@ -21,7 +18,9 @@ with open('FAQ.csv', newline='') as faq_file:
         faq_data.append(row)
 
 # Load the pre-trained transformer model for question answering
-qa_model = pipeline("question-answering", model="distilbert-base-cased-distilled-squad")
+tokenizer = AutoTokenizer.from_pretrained('distilbert-base-cased-distilled-squad')
+model = AutoModelForQuestionAnswering.from_pretrained('distilbert-base-cased-distilled-squad')
+qa_model = pipeline('question-answering', model=model, tokenizer=tokenizer)
 
 # Define a function to process the user's input and generate a response
 def generate_response(input_text):
@@ -51,13 +50,14 @@ def generate_response(input_text):
     # If no matching question was found and the transformer model couldn't answer the question, return a default response
     return "I'm sorry, I don't understand. Please try asking a different question or send a mail to Ade@payroll.com."
 
-# Define a function to handle user input and generate a response
-def chat():
-    print("Welcome to the Payroll Company FAQ Chatbot. How can I help you today?")
-    while True:
-        user_input = input("User: ")
-        response = generate_response(user_input)
-        print("Chatbot: " + response)
+# Define a Flask app and a POST route to handle user input and generate a response
+app = Flask(__name__)
 
-# Start the chatbot
-chat()
+@app.route('/chat', methods=['POST'])
+def chat():
+    user_input = request.json['input']
+    response = generate_response(user_input)
+    return jsonify({'response': response})
+
+if __name__ == '__main__':
+    app.run()
