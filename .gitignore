@@ -1,129 +1,63 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+import csv
+import spacy
+from transformers import pipeline
 
-# C extensions
-*.so
+# Install necessary dependencies
+!pip install spacy
+!pip install csv
+!pip install transformers
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+# Download the spaCy English language model
+!python -m spacy download en_core_web_md
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+# Load the English language model for spaCy
+nlp = spacy.load("en_core_web_md")
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+# Load the FAQ data from the CSV file
+faq_data = []
+with open('/kaggle/input/faqdata1/FAQ.csv', newline='') as faq_file:
+    reader = csv.reader(faq_file)
+    for row in reader:
+        faq_data.append(row)
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
+# Load the pre-trained transformer model for question answering
+qa_model = pipeline("question-answering", model="distilbert-base-cased-distilled-squad")
 
-# Translations
-*.mo
-*.pot
+# Define a function to process the user's input and generate a response
+def generate_response(input_text):
+    # Process the user's input using spaCy
+    input_doc = nlp(input_text)
+    
+    # Loop through the FAQ data to find a matching question
+    for faq in faq_data:
+        faq_question = faq[0]
+        faq_answer = faq[1]
+        
+        # Process the FAQ question using spaCy
+        faq_doc = nlp(faq_question)
+        
+        # Check if the user's input matches the FAQ question
+        if input_doc.similarity(faq_doc) > 0.8:
+            return faq_answer
+    
+    # Use the pre-trained transformer model to answer the user's question
+    qa_result = qa_model({
+        "question": input_text,
+        "context": " ".join(faq_data[i][0] for i in range(len(faq_data)))
+    })
+    if qa_result["score"] > 0.5:
+        return qa_result["answer"]
+    
+    # If no matching question was found and the transformer model couldn't answer the question, return a default response
+    return "I'm sorry, I don't understand. Please try asking a different question or send a mail to Ade@payroll.com."
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+# Define a function to handle user input and generate a response
+def chat():
+    print("Welcome to the Payroll Company FAQ Chatbot. How can I help you today?")
+    while True:
+        user_input = input("User: ")
+        response = generate_response(user_input)
+        print("Chatbot: " + response)
 
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
+# Start the chatbot
+chat()
